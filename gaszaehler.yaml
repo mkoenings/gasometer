@@ -26,53 +26,54 @@ wifi:
 
 captive_portal:
 
-# Pulse meter for gas consumption (counts pulses and flashes LED)
-sensor:
-  - platform: pulse_meter
+# Global variable to store total pulses
+globals:
+  - id: total_pulses
+    type: int
+    restore_value: true
+    initial_value: '0'
+
+# Binary sensor for pulse detection
+binary_sensor:
+  - platform: gpio
+    id: internal_pulse_counter
     pin:
       number: GPIO4
-      mode:
-        input: true
-        pullup: true
-    id: gas_meter_pulse_rate
-    name: "Gas Meter Pulse Rate"
-    unit_of_measurement: "pulses/min"
-    accuracy_decimals: 0
-    internal_filter: 100ms
-    timeout: 2min
-    state_class: measurement
-    on_value:
+      mode: INPUT_PULLUP
+    name: "Live Pulse"
+    filters:
+      - delayed_on: 10ms
+    on_press:
       then:
+        - lambda: id(total_pulses) += 1;
         - light.turn_on: status_led
-        - delay: 100ms
+    on_release:
+      then:
         - light.turn_off: status_led
-    total:
-      id: gas_meter_total_pulses
-      name: "Gas Meter Total Pulses"
-      accuracy_decimals: 0
-      unit_of_measurement: "pulses"
-      state_class: total_increasing
-      
-  # Convert pulses to actual gas volume
+
+# Sensors
+sensor:
+  # Gas consumption in m³
   - platform: template
     name: "Gas Consumption Total"
+    device_class: gas
     unit_of_measurement: "m³"
-    accuracy_decimals: 2
-    device_class: gas
     state_class: total_increasing
+    icon: "mdi:fire"
+    accuracy_decimals: 2
     lambda: |-
-      return id(gas_meter_total_pulses).state * 0.01;
-    update_interval: 60s
-    
+      return id(total_pulses) * 0.01;
+    update_interval: 10s
+
+  # Total pulses (for debugging)
   - platform: template
-    name: "Gas Consumption Rate"
-    unit_of_measurement: "m³/h"
-    accuracy_decimals: 3
-    device_class: gas
-    state_class: measurement
+    name: "Gas Meter Total Pulses"
+    unit_of_measurement: "pulses"
+    state_class: total_increasing
+    accuracy_decimals: 0
     lambda: |-
-      return id(gas_meter_pulse_rate).state * 0.01 * 60.0;
-    update_interval: 60s
+      return id(total_pulses);
+    update_interval: 10s
 
   # WiFi Signal Strength
   - platform: wifi_signal
@@ -84,9 +85,8 @@ button:
   - platform: template
     name: "Reset Gas Meter"
     on_press:
-      - pulse_meter.set_total_pulses:
-          id: gas_meter_pulse_rate
-          value: 0
+      - lambda: |-
+          id(total_pulses) = 0;
 
 # LED for visual feedback (using built-in LED on GPIO8)
 light:
