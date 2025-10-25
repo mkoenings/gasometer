@@ -1,0 +1,101 @@
+esphome:
+  name: gasometer
+
+esp32:
+  board: nologo_esp32c3_super_mini
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: "BigPanda2"
+  password: "5000637314746650"
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Gaszaehler Fallback Hotspot"
+    password: "RpWbDlos9Zsz"
+
+captive_portal:
+
+# Pulse meter for gas consumption (counts pulses and flashes LED)
+sensor:
+  - platform: pulse_meter
+    pin:
+      number: GPIO4
+      mode:
+        input: true
+        pullup: true
+    id: gas_meter_pulse_rate
+    name: "Gas Meter Pulse Rate"
+    unit_of_measurement: "pulses/min"
+    accuracy_decimals: 0
+    internal_filter: 100ms
+    timeout: 2min
+    state_class: measurement
+    on_value:
+      then:
+        - light.turn_on: status_led
+        - delay: 100ms
+        - light.turn_off: status_led
+    total:
+      id: gas_meter_total_pulses
+      name: "Gas Meter Total Pulses"
+      accuracy_decimals: 0
+      unit_of_measurement: "pulses"
+      state_class: total_increasing
+      
+  # Convert pulses to actual gas volume
+  - platform: template
+    name: "Gas Consumption Total"
+    unit_of_measurement: "m³"
+    accuracy_decimals: 2
+    device_class: gas
+    state_class: total_increasing
+    lambda: |-
+      return id(gas_meter_total_pulses).state * 0.01;
+    update_interval: 60s
+    
+  - platform: template
+    name: "Gas Consumption Rate"
+    unit_of_measurement: "m³/h"
+    accuracy_decimals: 3
+    device_class: gas
+    state_class: measurement
+    lambda: |-
+      return id(gas_meter_pulse_rate).state * 0.01 * 60.0;
+    update_interval: 60s
+
+  # WiFi Signal Strength
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+# Reset button for pulse counter
+button:
+  - platform: template
+    name: "Reset Gas Meter"
+    on_press:
+      - pulse_meter.set_total_pulses:
+          id: gas_meter_pulse_rate
+          value: 0
+
+# LED for visual feedback (using built-in LED on GPIO8)
+light:
+  - platform: binary
+    id: status_led
+    name: "Status LED"
+    output: led_output
+
+output:
+  - platform: gpio
+    id: led_output
+    pin: GPIO8

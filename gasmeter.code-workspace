@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "*.yaml": "yaml"
+    },
+    "yaml.schemas": {
+      "https://esphome.io/schema.json": "*.yaml"
+    },
+    "yaml.format.enable": true,
+    "yaml.validate": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+  "extensions": {
+    "recommendations": [
+      "ESPHome.esphome-vscode",
+      "redhat.vscode-yaml",
+      "ms-python.python",
+      "platformio.platformio-ide"
+    ]
+  }
+}
